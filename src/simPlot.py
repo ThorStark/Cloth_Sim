@@ -8,10 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.tri as tri
 import time
-
-def data(i,c,line):
-    #time.sleep(5.0)
+def data(i,c,surf,triang):
     x = []
     y = []
     z = []
@@ -20,16 +19,16 @@ def data(i,c,line):
         x.append(point[0])
         y.append(point[1])
         z.append(point[2])
+        
     ax.clear()
-    for s in c.springs:
-        p0 = c.particles[s.indI_].pos3D_
-        p1 = c.particles[s.indJ_].pos3D_
-        line = ax.plot([p0[0], p1[0]], [p0[1], p1[1]], [p0[2], p1[2]],color= 'g')
-    line = ax.scatter(x, y, z,color= 'b')
+
+    surf = ax.plot_trisurf(x,y,z,triangles=triang.triangles,color= 'gray',linewidth=0.4)
     ax.set_zlim(-2.0 , 1.2)
+    ax.set_xlim(-1.0 , 10)
+    ax.set_ylim(-1.0 , 10)
     for i in range(0,20):
         c.simUpdate1(0.001)
-    return line
+    return surf
 
 c = sms.Cloth(10,10,0.1)
 c.constrainParticle(0)
@@ -45,24 +44,12 @@ for p in c.particles:
     y.append(point[1])
     z.append(point[2])
 
+triang = tri.Triangulation(x, y)
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.set_zlim(0.0 , 1.2)
 
-line = ax.scatter(x, y, z,color= 'b')
-for s in c.springs:
-    p0 = c.particles[s.indI_].pos3D_
-    p1 = c.particles[s.indJ_].pos3D_
-    line = ax.plot([p0[0], p1[0]], [p0[1], p1[1]], [p0[2], p1[2]],color= 'g')
-
-ani = animation.FuncAnimation(fig, data, fargs=(c, line), interval=30, blit=False)
+surf = ax.plot_trisurf(x, y, z,color= 'b')
+ani = animation.FuncAnimation(fig, data, fargs=(c, surf, triang), interval=30, blit=False)
 
 plt.show()
-
-"""
-TEST
-test = fabric(2,3,10.0,13.0)
-test.initParticles()
-a = test.getArea()
-print(a)
-"""
