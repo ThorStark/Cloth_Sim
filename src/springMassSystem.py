@@ -78,19 +78,19 @@ class Cloth:
                     #Create springs!
                     if(taxicab_dist == 1 ):
                         #create stretch spring
-                        spring = Spring(1.0,5.0e+3,0.2,i,j)
+                        spring = Spring(1.0,5.0e+4,0.8,i,j)
                         self.springs.append(spring)
                         pI.springIdx_.append(len(self.springs)-1)
                         pJ.springIdx_.append(len(self.springs)-1)
                     if(euclid_dist < 2 and taxicab_dist == 2):
                         #create shear springs
-                        spring = Spring(euclid_dist,0.5e+3,0.2,i,j)
+                        spring = Spring(euclid_dist,0.5e+4,0.2,i,j)
                         self.springs.append(spring)
                         pI.springIdx_.append(len(self.springs)-1)
                         pJ.springIdx_.append(len(self.springs)-1)
                     if(euclid_dist == 2.0 and taxicab_dist == 2.0):
                         #create Bend springs
-                        spring = Spring(euclid_dist,0.01e-3,0.2,i,j)
+                        spring = Spring(euclid_dist,0.05e+7,0.15,i,j)
                         self.springs.append(spring)
                         pI.springIdx_.append(len(self.springs)-1)
                         pJ.springIdx_.append(len(self.springs)-1)

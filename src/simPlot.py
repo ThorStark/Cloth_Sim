@@ -26,11 +26,11 @@ def data(i,c,surf,triang):
     ax.set_zlim(-2.0 , 1.2)
     ax.set_xlim(-1.0 , 10)
     ax.set_ylim(-1.0 , 10)
-    for i in range(0,20):
-        c.simUpdate1(0.001)
+    for i in range(0,10):
+        c.simUpdate1(0.0005)
     return surf
 
-c = sms.Cloth(10,10,0.1)
+c = sms.Cloth(10,10,0.29)
 c.constrainParticle(0)
 c.constrainParticle(9)
 c.constrainParticle(90)
