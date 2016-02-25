@@ -98,40 +98,53 @@ class Cloth:
         """
         #Compute forces
         self.force(self.X,self.V)
-        self.F[0] = [0.0, 0.0, 0.0]
-        self.F[9] = [0.0, 0.0, 0.0]
         #Choose method
         if method == explicit_method.forward_euler:
             self.forwardEuler(stepT)
         elif method == explicit_method.runge_kutta_2:
-            print "Not implemented"
+            self.RK2(stepT)
         elif method == explicit_method.runge_kutta_4:
             print "Not implemented"
 
         
-        
 
     def forwardEuler(self, stepT):
-        for i, f in enumerate(self.F):
-            oldV = self.V[i]
-            self.V[i] += stepT*f/self.mass
-            self.X[i] += stepT*oldV
+        for c in self.constrIdx:
+            self.F[c] = [0.0,0.0,0.0]
+        oldV = self.V
+        self.V += stepT*self.F/self.mass
+        self.X += stepT*oldV
+            
 
     def RK2(self, stepT):
+        for c in self.constrIdx:
+            self.F[c] = [0.0,0.0,0.0]
+            
         a1 = self.V
         a2 = self.F/self.mass
         
         b1 = self.V + stepT/2*a2
-        for i in range(0,self.nElements):
-            a1[i] = self.V[i]
-            a2[i] = self.F[i]            
+        X2 = self.X+stepT/2*a1
+        V2 = self.V+stepT/2*a2
+        self.force(X2,V2)
+        for c in self.constrIdx:
+            self.F[c] = [0.0,0.0,0.0]
+        b2 = self.F/self.mass
+
+        self.X += stepT*b1
+        self.V += stepT*b2
         
-        
-        
+    def constrain(self,constrIdx):
+        self.constrIdx = constrIdx
         
 
 #Test
-#c = Cloth(3,3,1)
-#c.simUpdateExplicit(0.002,explicit_method.forward_euler)
-#print c.F
+        """
+c = Cloth(3,3,1)
+for i in range(0,10):
+    c.simUpdateExplicit(0.002,explicit_method.runge_kutta_2)
+    print c.F
+    print ""
+    """
+
 

@@ -25,11 +25,13 @@ def data(i,c,surf,triang):
     ax.set_zlim(-6.0 , 1.2)
     ax.set_xlim(-1.0 , 10)
     ax.set_ylim(-1.0 , 10)
-    for i in range(0,10):
-        c.simUpdateExplicit(0.0005,sms.explicit_method.forward_euler)
+    for i in range(0,30):
+        c.simUpdateExplicit(0.0001,sms.explicit_method.runge_kutta_2)
     return surf
 
 c = sms.Cloth(10,10,0.29)
+constr = np.array([0,9])
+c.constrain(constr)
 x = []
 y = []
 z = []
