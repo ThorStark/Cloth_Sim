@@ -91,7 +91,9 @@ class Cloth:
             #Add forces
             self.F[s.indI_] += spring_force+spring_damp_force
             self.F[s.indJ_] -= spring_force+spring_damp_force
-
+        #Check if constrained
+        for c in self.constrIdx:
+            self.F[c] = [0.0,0.0,0.0]
     def simUpdateExplicit(self,stepT,method):
         """
             simulation update: Uses explicit Euler
@@ -109,17 +111,12 @@ class Cloth:
         
 
     def forwardEuler(self, stepT):
-        for c in self.constrIdx:
-            self.F[c] = [0.0,0.0,0.0]
         oldV = self.V
         self.V += stepT*self.F/self.mass
         self.X += stepT*oldV
             
 
-    def RK2(self, stepT):
-        for c in self.constrIdx:
-            self.F[c] = [0.0,0.0,0.0]
-            
+    def RK2(self, stepT):      
         a1 = self.V
         a2 = self.F/self.mass
         
@@ -127,16 +124,20 @@ class Cloth:
         X2 = self.X+stepT/2*a1
         V2 = self.V+stepT/2*a2
         self.force(X2,V2)
-        for c in self.constrIdx:
-            self.F[c] = [0.0,0.0,0.0]
         b2 = self.F/self.mass
 
         self.X += stepT*b1
         self.V += stepT*b2
+
+    def RK4(self, stepT):
+        for c in self.constrIdx:
+            self.F[c] = [0.0,0.0,0.0]
+        
         
     def constrain(self,constrIdx):
         self.constrIdx = constrIdx
-        
+        a1 = self.V
+        a2 = self.F/self.mass
 
 #Test
         """
