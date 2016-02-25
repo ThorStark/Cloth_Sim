@@ -106,7 +106,7 @@ class Cloth:
         elif method == explicit_method.runge_kutta_2:
             self.RK2(stepT)
         elif method == explicit_method.runge_kutta_4:
-            print "Not implemented"
+            self.RK4(stepT)
 
         
 
@@ -130,8 +130,29 @@ class Cloth:
         self.V += stepT*b2
 
     def RK4(self, stepT):
-        for c in self.constrIdx:
-            self.F[c] = [0.0,0.0,0.0]
+        a1 = self.V
+        a2 = self.F/self.mass
+
+        b1 = self.V + stepT/2*a2
+        Xtmp = self.X+stepT/2*a1
+        Vtmp = self.V+stepT/2*a2
+        self.force(Xtmp,Vtmp)
+        b2 = self.F/self.mass
+
+        c1 = self.V + stepT/2*b2
+        Xtmp = self.X+stepT/2*b1
+        Vtmp = self.V+stepT/2*b2
+        self.force(Xtmp,Vtmp)
+        c2 = self.F/self.mass
+
+        d1 = self.V + stepT*c2
+        Xtmp = self.X+stepT*c1
+        Vtmp = self.V+stepT*c2
+        self.force(Xtmp,Vtmp)
+        d2 = self.F/self.mass
+
+        self.X += stepT/6*(a1+2*b1+2*c1+d1)
+        self.V += stepT/6*(a2+2*b2+2*c2+d2)
         
         
     def constrain(self,constrIdx):

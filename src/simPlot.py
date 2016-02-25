@@ -26,7 +26,7 @@ def data(i,c,surf,triang):
     ax.set_xlim(-1.0 , 10)
     ax.set_ylim(-1.0 , 10)
     for i in range(0,30):
-        c.simUpdateExplicit(0.0001,sms.explicit_method.runge_kutta_2)
+        c.simUpdateExplicit(0.0001,sms.explicit_method.runge_kutta_4)
     return surf
 
 c = sms.Cloth(10,10,0.29)
