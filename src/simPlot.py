@@ -14,35 +14,29 @@ def data(i,c,surf,triang):
     x = []
     y = []
     z = []
-    for p in c.particles:
-        point = p.pos3D_
-        x.append(point[0])
-        y.append(point[1])
-        z.append(point[2])
+    for p in c.X:
+        x.append(p[0])
+        y.append(p[1])
+        z.append(p[2])
         
     ax.clear()
 
     surf = ax.plot_trisurf(x,y,z,triangles=triang.triangles,color= 'gray',linewidth=0.4)
-    ax.set_zlim(-2.0 , 1.2)
+    ax.set_zlim(-6.0 , 1.2)
     ax.set_xlim(-1.0 , 10)
     ax.set_ylim(-1.0 , 10)
     for i in range(0,10):
-        c.simUpdate1(0.0005)
+        c.simUpdateExplicit(0.0005,sms.explicit_method.forward_euler)
     return surf
 
 c = sms.Cloth(10,10,0.29)
-c.constrainParticle(0)
-c.constrainParticle(9)
-c.constrainParticle(90)
-c.constrainParticle(99)
 x = []
 y = []
 z = []
-for p in c.particles:
-    point = p.pos3D_
-    x.append(point[0])
-    y.append(point[1])
-    z.append(point[2])
+for p in c.X:
+    x.append(p[0])
+    y.append(p[1])
+    z.append(p[2])
 
 triang = tri.Triangulation(x, y)
 fig = plt.figure()
