@@ -14,7 +14,6 @@ class explicit_method(Enum):
     
 class Spring:
     """ Class for Springs connecting vertices in the spring system """
-
     def __init__(self, L0, ks, kd, I, J):
         self.l0_ = L0   # Rest length
         self.ks_ = ks   # Spring constant
@@ -108,65 +107,58 @@ class Cloth:
         elif method == explicit_method.runge_kutta_4:
             self.RK4(stepT)
 
-        
-
     def forwardEuler(self, stepT):
         oldV = self.V
         self.V += stepT*self.F/self.mass
-        self.X += stepT*oldV
-            
+        self.X += stepT*oldV  
 
-    def RK2(self, stepT):      
+    def RK2(self, stepT):
+        #Step 1
         a1 = self.V
         a2 = self.F/self.mass
-        
+
+        #Step 2
         b1 = self.V + stepT/2*a2
         X2 = self.X+stepT/2*a1
         V2 = self.V+stepT/2*a2
         self.force(X2,V2)
         b2 = self.F/self.mass
 
+        #Update Pos and Vel
         self.X += stepT*b1
         self.V += stepT*b2
 
     def RK4(self, stepT):
+        #Step 1
         a1 = self.V
         a2 = self.F/self.mass
 
+        #Step 2
         b1 = self.V + stepT/2*a2
         Xtmp = self.X+stepT/2*a1
         Vtmp = self.V+stepT/2*a2
         self.force(Xtmp,Vtmp)
         b2 = self.F/self.mass
 
+        #Step 3
         c1 = self.V + stepT/2*b2
         Xtmp = self.X+stepT/2*b1
         Vtmp = self.V+stepT/2*b2
         self.force(Xtmp,Vtmp)
         c2 = self.F/self.mass
 
+        #Step 4
         d1 = self.V + stepT*c2
         Xtmp = self.X+stepT*c1
         Vtmp = self.V+stepT*c2
         self.force(Xtmp,Vtmp)
         d2 = self.F/self.mass
 
+        #Update Pos and Vel
         self.X += stepT/6*(a1+2*b1+2*c1+d1)
         self.V += stepT/6*(a2+2*b2+2*c2+d2)
         
-        
     def constrain(self,constrIdx):
-        self.constrIdx = constrIdx
-        a1 = self.V
-        a2 = self.F/self.mass
-
-#Test
-        """
-c = Cloth(3,3,1)
-for i in range(0,10):
-    c.simUpdateExplicit(0.002,explicit_method.runge_kutta_2)
-    print c.F
-    print ""
-    """
+        self.constrIdx = constrIdx #Index to constrains
 
 
