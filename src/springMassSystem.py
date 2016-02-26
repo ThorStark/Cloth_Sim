@@ -70,6 +70,8 @@ class Cloth:
                         #create Bend springs
                         spring = Spring(euclid_dist,0.05e+7,0.15,i,j,-1,spring_type.tension)
                         self.springs.append(spring)
+                        """
+                        #TODO. Finish new implementation of bend torsion spring.
                         #create torsion bend springs.
                         for k, xk in enumerate(self.X):
                             #find particle between the two
@@ -78,6 +80,7 @@ class Cloth:
                             if(taxicab_dist1 == 1 and taxicab_dist2 == 1):
                                 spring = Spring(0,0.05e+7,0.15,i,j,k,spring_type.torsion)
                                 self.springs.append(spring)
+                        """
                     
                         
         print("Springs initialized")
@@ -125,7 +128,7 @@ class Cloth:
                     else:
                         angle = np.pi
                 #Calculate force
-                spring_torsion += 
+                #spring_torsion += 
                 #print angle
 
         #Check if constrained
