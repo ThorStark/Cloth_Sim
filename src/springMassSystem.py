@@ -7,6 +7,14 @@ Author: Thor Staerk Stenvang
 import numpy as np
 from enum import Enum
 
+CONST_GRAVITY       = -9.8      # Gravitational acceleration (m/s^2)
+CONST_KS_STRETCH    = 5.0e+4    # Spring constant (N/m)
+CONST_KS_SHEAR      = 0.5e+4    # --||--
+CONST_KS_BEND       = 0.05e+7   # --||--
+CONST_KD_STRETCH    = 0.8       # Damping coefficient (N*s/m)
+CONST_KD_SHEAR      = 0.2       # --||--
+CONST_KD_BEND       = 0.2       # --||--
+
 class explicit_method(Enum):
     forward_euler = 0
     runge_kutta_2   = 1
@@ -39,7 +47,7 @@ class Cloth:
         self.mass = m # Mass
         self.M = np.diag(np.zeros(self.nElements)+self.mass) #diagonal mass matrix
         self.Minv = np.linalg.inv(self.M) #Invers Mass matrix
-        self.sGravity = np.array([0.0,0.0,-9.8]) #Standard gravity acceleration
+        self.sGravity = np.array([0.0,0.0,CONST_GRAVITY]) #Standard gravity acceleration
         self.constrIdx = np.array([])
         
         #Create Particles in uniform mesh
@@ -60,15 +68,15 @@ class Cloth:
                     #Create springs!
                     if(taxicab_dist == 1 ):
                         #create stretch spring
-                        spring = Spring(1.0,5.0e+4,0.8,i,j,-1,spring_type.tension)
+                        spring = Spring(euclid_dist,CONST_KS_STRETCH,CONST_KD_STRETCH,i,j,-1,spring_type.tension)
                         self.springs.append(spring)
                     if(euclid_dist < 2 and taxicab_dist == 2):
                         #create shear springs
-                        spring = Spring(euclid_dist,0.5e+4,0.2,i,j,-1,spring_type.tension)
+                        spring = Spring(euclid_dist,CONST_KS_SHEAR,CONST_KD_SHEAR,i,j,-1,spring_type.tension)
                         self.springs.append(spring)
                     if(euclid_dist == 2.0 and taxicab_dist == 2.0):
                         #create Bend springs
-                        spring = Spring(euclid_dist,0.05e+7,0.15,i,j,-1,spring_type.tension)
+                        spring = Spring(euclid_dist,CONST_KS_BEND,CONST_KD_BEND,i,j,-1,spring_type.tension)
                         self.springs.append(spring)
                         """
                         #TODO. Finish new implementation of bend torsion spring.
@@ -108,7 +116,7 @@ class Cloth:
                 deltaX = xj-xi
                 norm2 = np.linalg.norm(deltaX)
                 spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
-                spring_damp_force = -s.kd_ * np.dot((vj-vi),deltaX)/norm2  #Damping on string
+                spring_damp_force = -s.kd_ * np.dot((vj-vi),deltaX/norm2)  #Damping on string
                 #Add forces
                 self.F[s.indI_] += spring_force+spring_damp_force
                 self.F[s.indJ_] -= spring_force+spring_damp_force
@@ -145,7 +153,6 @@ class Cloth:
             deltaXtransposed = np.transpose(deltaX)
             norm2 = np.linalg.norm(deltaX)
             I = np.identity(3)
-
             #Position jacobian
             
         
@@ -235,3 +242,4 @@ for i in range(0,200):
     print ""
 print len(c.springs)
 """
+
