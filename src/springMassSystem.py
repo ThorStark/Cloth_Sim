@@ -8,12 +8,13 @@ import numpy as np
 from enum import Enum
 
 CONST_GRAVITY       = -9.8      # Gravitational acceleration (m/s^2)
-CONST_KS_STRETCH    = 5.0e+4    # Spring constant (N/m)
-CONST_KS_SHEAR      = 0.5e+4    # --||--
-CONST_KS_BEND       = 0.05e+7   # --||--
-CONST_KD_STRETCH    = 0.8       # Damping coefficient (N*s/m)
-CONST_KD_SHEAR      = 0.2       # --||--
-CONST_KD_BEND       = 0.2       # --||--
+CONST_KD_DRAG       = 0.2       # Air drag damper coefficient (N*s/m)
+CONST_KS_STRETCH    = 1.0e+3    # Spring constant (N/m)
+CONST_KS_SHEAR      = 1.0e+3    # --||--
+CONST_KS_BEND       = 1.0e+5    # --||--
+CONST_KD_STRETCH    = 0.0      # Damping coefficient
+CONST_KD_SHEAR      = 0.0       # --||--
+CONST_KD_BEND       = 0.0       # --||--
 
 class explicit_method(Enum):
     forward_euler = 0
@@ -32,7 +33,7 @@ class Spring:
         self.indI_ = I  # index to first particle connected to spring
         self.indJ_ = J  # index to second ------||------
         self.indK_ = K  # index two third particle (used for torsion spring)
-        self.type_  = t  # Type of spring (tension or torsion)
+        self.type_  = t # Type of spring (tension or torsion)
 
 class Cloth:
     
@@ -103,6 +104,9 @@ class Cloth:
             self.F[i] = [0.0, 0.0, 0.0]
             #Add gravitational force
             self.F[i] += self.sGravity
+        #Add damping force (Air drag)
+        self.F -= CONST_KD_DRAG*self.V
+            
         #Add spring forces
         for s in self.springs:
             """
@@ -116,7 +120,15 @@ class Cloth:
                 deltaX = xj-xi
                 norm2 = np.linalg.norm(deltaX)
                 spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
-                spring_damp_force = -s.kd_ * np.dot((vj-vi),deltaX/norm2)  #Damping on string
+                spring_damp_force = -s.kd_ * (vj-vi)*deltaX/norm2  #Damping on string
+                """
+                if(np.linalg.norm(spring_damp_force) > np.linalg.norm(spring_force)):
+                    print("K ",spring_force)
+                    print("d ",spring_damp_force)
+                    print("s ",s.indI_,s.indJ_)
+                    print ""
+                """
+                
                 #Add forces
                 self.F[s.indI_] += spring_force+spring_damp_force
                 self.F[s.indJ_] -= spring_force+spring_damp_force
@@ -234,10 +246,11 @@ class Cloth:
         
     def constrain(self,constrIdx):
         self.constrIdx = constrIdx #Index to constrains
-
 """
 c = Cloth(3,3,0.2)
 for i in range(0,200):
+    c.simUpdateExplicit(0.005,explicit_method.forward_euler)
+for i in range(0,10):
     c.simUpdateExplicit(0.005,explicit_method.forward_euler)
     print ""
 print len(c.springs)
