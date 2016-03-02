@@ -22,16 +22,16 @@ def data(i,c,surf,triang):
     surf = ax.plot_trisurf(x,y,z,triangles=triang.triangles,color= 'gray',linewidth=0.4)
     # Limit plot for better data visualization
     ax.set_zlim(-10.2 , 1.2)
-    ax.set_xlim(-0.2 , 10.2)
-    ax.set_ylim(-0.2 , 13.2)
+    ax.set_xlim(-0.2 , 9.2)
+    ax.set_ylim(-0.2 , 9.2)
     
     #Update simulation
-    for i in range(0,10):
-        c.simUpdateExplicit(0.0001,sms.explicit_method.forward_euler)
+    for i in range(0,20):
+        c.simUpdateExplicit(0.00014,sms.explicit_method.runge_kutta_4)
     return surf
 
 c = sms.Cloth(10,10,0.001)
-constr = np.array([80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99])
+constr = np.array([0,9,90,99])
 c.constrain(constr) #Constrain specific particles
 
 x = []

@@ -9,7 +9,7 @@ from enum import Enum
 
 CONST_GRAVITY       = -9.8      # Gravitational acceleration (m/s^2)
 CONST_KD_DRAG       = 0.2       # Air drag damper coefficient (N*s/m)
-CONST_KS_STRETCH    = 1.0e+3    # Spring constant (N/m)
+CONST_KS_STRETCH    = 2.0e+3    # Spring constant (N/m)
 CONST_KS_SHEAR      = 1.0e+3    # --||--
 CONST_KS_BEND       = 1.0e+5    # --||--
 CONST_KD_STRETCH    = 0.0      # Damping coefficient
@@ -47,8 +47,9 @@ class Cloth:
         self.F = np.zeros((self.nElements, 3)) #Forces
         self.mass = m # Mass
         self.M = np.diag(np.zeros(self.nElements)+self.mass) #diagonal mass matrix
-        self.Minv = np.linalg.inv(self.M) #Invers Mass matrix
         self.sGravity = np.array([0.0,0.0,CONST_GRAVITY]) #Standard gravity acceleration
+        self.Jx = np.zeros((3*self.nElements, 3*self.nElements)) #Force Jacobian. J(x), used by implicit methods
+        self.Jv = np.zeros((3*self.nElements, 3*self.nElements)) #Force Jacobian. J(v), used by implicit methods
         self.constrIdx = np.array([])
         
         #Create Particles in uniform mesh
@@ -56,7 +57,7 @@ class Cloth:
         for i in range(0,dimY):
             for j in range(0,dimX):
                 pos = np.asarray([i,j,1.0])
-                self.X[i*dimY+j] = pos
+                self.X[i*dimX+j] = pos
         print("Particles initialized")
         
         #Create springs
@@ -156,18 +157,32 @@ class Cloth:
             self.F[c] = [0.0,0.0,0.0]
 
     def forceDerivatives(self,X,V):
+        self.K = np.zeros((3*self.nElements, 3*self.nElements))
         for s in self.springs:
             xi = X[s.indI_] #Pos of particle i
             xj = X[s.indJ_] #Pos of particle j
-            vi = V[s.indI_] #velocity of particle i
-            vj = V[s.indJ_] #velocity of particle j
             deltaX = xj-xi
-            deltaXtransposed = np.transpose(deltaX)
+            deltaXT = np.transpose(deltaX)
             norm2 = np.linalg.norm(deltaX)
             I = np.identity(3)
-            #Position jacobian
             
-        
+            #Position jacobian
+            jx_sub = s.ks_*(-I - s.l0_/norm2*(-I - (deltaX*deltaXT)/(norm2*norm2)))
+            """
+            Insert into jacobian
+            K = | Kii  Kij | = | K_sub  -K_sub |
+                | Kji  Kjj |   | -K_sub  K_sub |
+            """
+            self.Jx[3*s.indI_:3*s.indI_+3, 3*s.indI_:3*s.indI_+3] += jx_sub
+            self.Jx[3*s.indI_:3*s.indI_+3, 3*s.indJ_:3*s.indJ_+3] += -jx_sub
+            self.Jx[3*s.indJ_:3*s.indJ_+3, 3*s.indI_:3*s.indI_+3] += -jx_sub
+            self.Jx[3*s.indJ_:3*s.indJ_+3, 3*s.indJ_:3*s.indJ_+3] += jx_sub
+
+            #Velocity jacobian
+                
+            
+            
+              
 
     def simUpdateExplicit(self,stepT,method):
         """
@@ -236,23 +251,17 @@ class Cloth:
 
     def ImplictEuler(self, stepT):
         """
-            (I - h*M^-1 * df/dv - h2*M^-1*df_dx)deltaV = h*M^-1(f0+h*df/dx*v0)
+            (M-h*df/dv-h^2*df/dx)deltaV=h(f0+h*df/dx*v0)
             A*deltaV = b
-            A = (I - h*M^-1 * df/dv - h2*M^-1*df_dx)
-            b = h*M^-1(f0+h*df/dx*v0)
+            A = (M-h*df/dv-h^2*df/dx)
+            b = h(f0+h*df/dx*v0)
         """
         
         
         
     def constrain(self,constrIdx):
         self.constrIdx = constrIdx #Index to constrains
-"""
-c = Cloth(3,3,0.2)
-for i in range(0,200):
-    c.simUpdateExplicit(0.005,explicit_method.forward_euler)
-for i in range(0,10):
-    c.simUpdateExplicit(0.005,explicit_method.forward_euler)
-    print ""
-print len(c.springs)
-"""
+
+c = Cloth(2,2,0.2)
+
 
