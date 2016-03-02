@@ -46,7 +46,7 @@ class Cloth:
         self.V = np.zeros((self.nElements, 3)) #Velocities
         self.F = np.zeros((self.nElements, 3)) #Forces
         self.mass = m # Mass
-        self.M = np.diag(np.zeros(self.nElements)+self.mass) #diagonal mass matrix
+        self.M = np.diag(np.zeros(3*self.nElements)+self.mass) #diagonal mass matrix
         self.sGravity = np.array([0.0,0.0,CONST_GRAVITY]) #Standard gravity acceleration
         self.Jx = np.zeros((3*self.nElements, 3*self.nElements)) #Force Jacobian. J(x), used by implicit methods
         self.Jv = np.zeros((3*self.nElements, 3*self.nElements)) #Force Jacobian. J(v), used by implicit methods
@@ -106,7 +106,7 @@ class Cloth:
             #Add gravitational force
             self.F[i] += self.sGravity
         #Add damping force (Air drag)
-        self.F -= CONST_KD_DRAG*self.V
+        #self.F -= CONST_KD_DRAG*self.V
             
         #Add spring forces
         for s in self.springs:
@@ -120,8 +120,15 @@ class Cloth:
                 vj = V[s.indJ_] #velocity of particle j
                 deltaX = xj-xi
                 norm2 = np.linalg.norm(deltaX)
-                spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
-                spring_damp_force = -s.kd_ * (vj-vi)*deltaX/norm2  #Damping on string
+                if(norm2 == 0.0):
+                    print "shit"
+                    print xi
+                    print xj
+                    print s.indI_
+                    print s.indJ_
+                else:
+                    spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
+                    spring_damp_force = -s.kd_ * (vj-vi)*deltaX/norm2  #Damping on string
                 """
                 if(np.linalg.norm(spring_damp_force) > np.linalg.norm(spring_force)):
                     print("K ",spring_force)
@@ -152,12 +159,9 @@ class Cloth:
                 #spring_torsion += 
                 #print angle
 
-        #Check if constrained
-        for c in self.constrIdx:
-            self.F[c] = [0.0,0.0,0.0]
-
     def forceDerivatives(self,X,V):
-        self.K = np.zeros((3*self.nElements, 3*self.nElements))
+        self.Jx = np.zeros((3*self.nElements, 3*self.nElements))
+        self.Jv = np.zeros((3*self.nElements, 3*self.nElements))
         for s in self.springs:
             xi = X[s.indI_] #Pos of particle i
             xj = X[s.indJ_] #Pos of particle j
@@ -170,8 +174,8 @@ class Cloth:
             jx_sub = s.ks_*(-I - s.l0_/norm2*(-I - (deltaX*deltaXT)/(norm2*norm2)))
             """
             Insert into jacobian
-            K = | Kii  Kij | = | K_sub  -K_sub |
-                | Kji  Kjj |   | -K_sub  K_sub |
+            Jx = | Jx_ii  Jx_ij | = | j_sub  -j_sub |
+                 | Jx_ji  Jx_jj |   | -j_sub  j_sub |
             """
             self.Jx[3*s.indI_:3*s.indI_+3, 3*s.indI_:3*s.indI_+3] += jx_sub
             self.Jx[3*s.indI_:3*s.indI_+3, 3*s.indJ_:3*s.indJ_+3] += -jx_sub
@@ -179,7 +183,9 @@ class Cloth:
             self.Jx[3*s.indJ_:3*s.indJ_+3, 3*s.indJ_:3*s.indJ_+3] += jx_sub
 
             #Velocity jacobian
-                
+            """
+            Todo
+            """
             
             
               
@@ -256,12 +262,32 @@ class Cloth:
             A = (M-h*df/dv-h^2*df/dx)
             b = h(f0+h*df/dx*v0)
         """
+        #Calculate forces and jacobians
+        self.force(self.X,self.V)
+        self.forceDerivatives(self.X,self.V)
+        #setup linear equation
+        A = self.M - stepT*self.Jv - stepT*stepT*self.Jx
+        b = stepT*(self.F.flatten() + stepT * np.dot(self.Jx,self.V.flatten()))
+        #Solve equation
+        deltaV = np.linalg.solve(A,b)
+
+        #reshape
+        deltaV = deltaV.reshape((-1,3))
+
+        #Check if constrained
+        for c in self.constrIdx:
+            deltaV[c] = [0.0,0.0,0.0]
         
+
+        #Update pos and vel
+        self.X += stepT*(self.V + deltaV)
+        self.V += deltaV
         
         
     def constrain(self,constrIdx):
         self.constrIdx = constrIdx #Index to constrains
 
 c = Cloth(2,2,0.2)
+c.ImplictEuler(0.002)
 
 

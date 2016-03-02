@@ -26,12 +26,15 @@ def data(i,c,surf,triang):
     ax.set_ylim(-0.2 , 9.2)
     
     #Update simulation
+    """
     for i in range(0,20):
         c.simUpdateExplicit(0.00014,sms.explicit_method.runge_kutta_4)
+    """
+    c.ImplictEuler(0.0002)
     return surf
 
 c = sms.Cloth(10,10,0.001)
-constr = np.array([0,9,90,99])
+constr = np.array([0,9])
 c.constrain(constr) #Constrain specific particles
 
 x = []
