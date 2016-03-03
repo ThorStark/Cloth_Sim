@@ -34,7 +34,7 @@ def data(i,c,surf,triang):
     return surf
 
 c = sms.Cloth(10,10,0.001)
-constr = np.array([0,9])
+constr = np.array([0,9,90,99])
 c.constrain(constr) #Constrain specific particles
 
 x = []

@@ -106,7 +106,7 @@ class Cloth:
             #Add gravitational force
             self.F[i] += self.sGravity
         #Add damping force (Air drag)
-        #self.F -= CONST_KD_DRAG*self.V
+        self.F -= CONST_KD_DRAG*self.V
             
         #Add spring forces
         for s in self.springs:
@@ -120,15 +120,8 @@ class Cloth:
                 vj = V[s.indJ_] #velocity of particle j
                 deltaX = xj-xi
                 norm2 = np.linalg.norm(deltaX)
-                if(norm2 == 0.0):
-                    print "shit"
-                    print xi
-                    print xj
-                    print s.indI_
-                    print s.indJ_
-                else:
-                    spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
-                    spring_damp_force = -s.kd_ * (vj-vi)*deltaX/norm2  #Damping on string
+                spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
+                #spring_damp_force = -s.kd_ * (vj-vi)*deltaX/norm2  #Damping on string
                 """
                 if(np.linalg.norm(spring_damp_force) > np.linalg.norm(spring_force)):
                     print("K ",spring_force)
@@ -138,8 +131,8 @@ class Cloth:
                 """
                 
                 #Add forces
-                self.F[s.indI_] += spring_force+spring_damp_force
-                self.F[s.indJ_] -= spring_force+spring_damp_force
+                self.F[s.indI_] += spring_force #+spring_damp_force
+                self.F[s.indJ_] -= spring_force #+spring_damp_force
             elif(s.type_ == spring_type.torsion):
                 xi = X[s.indI_] #Pos of particle i
                 xj = X[s.indJ_] #Pos of particle j
@@ -171,7 +164,7 @@ class Cloth:
             I = np.identity(3)
             
             #Position jacobian
-            jx_sub = s.ks_*(-I - s.l0_/norm2*(-I - (deltaX*deltaXT)/(norm2*norm2)))
+            jx_sub = s.ks_*(-I + s.l0_/norm2*(I - np.outer(deltaX,deltaX)/(norm2*norm2)))
             """
             Insert into jacobian
             Jx = | Jx_ii  Jx_ij | = | j_sub  -j_sub |
@@ -268,6 +261,7 @@ class Cloth:
         #setup linear equation
         A = self.M - stepT*self.Jv - stepT*stepT*self.Jx
         b = stepT*(self.F.flatten() + stepT * np.dot(self.Jx,self.V.flatten()))
+        
         #Solve equation
         deltaV = np.linalg.solve(A,b)
 
@@ -288,6 +282,9 @@ class Cloth:
         self.constrIdx = constrIdx #Index to constrains
 
 c = Cloth(2,2,0.2)
+constr = np.array([0,2])
+c.constrain(constr)
 c.ImplictEuler(0.002)
+
 
 
