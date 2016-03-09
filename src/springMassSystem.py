@@ -8,18 +8,18 @@ import numpy as np
 from enum import Enum
 
 CONST_GRAVITY       = -9.8      # Gravitational acceleration (m/s^2)
-CONST_KD_DRAG       = 0.2       # Air drag damper coefficient (N*s/m)
+CONST_KD_DRAG       = 0.02       # Air drag damper coefficient (N*s/m)
 CONST_KS_STRETCH    = 2.0e+3    # Spring constant (N/m)
 CONST_KS_SHEAR      = 1.0e+3    # --||--
-CONST_KS_BEND       = 1.0e+5    # --||--
-CONST_KD_STRETCH    = 0.0      # Damping coefficient
-CONST_KD_SHEAR      = 0.0       # --||--
-CONST_KD_BEND       = 0.0       # --||--
+CONST_KS_BEND       = 1.0e+3    # --||--
+CONST_KD_STRETCH    = 0.001      # Damping coefficient
+CONST_KD_SHEAR      = 0.001      # --||--
+CONST_KD_BEND       = 0.001      # --||--
 
 class explicit_method(Enum):
-    forward_euler = 0
-    runge_kutta_2   = 1
-    runge_kutta_4   = 2
+    fe    = 0 # forward euler
+    rk2   = 1 # Runga kutta 2
+    rk4   = 2 # runga kutta 4
 class spring_type(Enum):
     tension = 0
     torsion = 1
@@ -121,7 +121,9 @@ class Cloth:
                 deltaX = xj-xi
                 norm2 = np.linalg.norm(deltaX)
                 spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
-                #spring_damp_force = -s.kd_ * (vj-vi)*deltaX/norm2  #Damping on string
+                spring_damp_force = s.kd_ * np.dot((vi-vj),deltaX/norm2)*deltaX/norm2  #Damping on string
+                #print([np.linalg.norm(spring_damp_force), np.linalg.norm(spring_force)]) #test magnitude of force
+                #print([np.dot(spring_damp_force,spring_force),(np.linalg.norm(spring_damp_force)*(np.linalg.norm(spring_force)))]) #Test direction of forces
                 """
                 if(np.linalg.norm(spring_damp_force) > np.linalg.norm(spring_force)):
                     print("K ",spring_force)
@@ -131,8 +133,8 @@ class Cloth:
                 """
                 
                 #Add forces
-                self.F[s.indI_] += spring_force #+spring_damp_force
-                self.F[s.indJ_] -= spring_force #+spring_damp_force
+                self.F[s.indI_] += spring_force +spring_damp_force
+                self.F[s.indJ_] -= spring_force +spring_damp_force
             elif(s.type_ == spring_type.torsion):
                 xi = X[s.indI_] #Pos of particle i
                 xj = X[s.indJ_] #Pos of particle j
@@ -190,16 +192,19 @@ class Cloth:
         #Compute forces
         self.force(self.X,self.V)
         #Choose method
-        if method == explicit_method.forward_euler:
+        if method == explicit_method.fe:
             self.forwardEuler(stepT)
-        elif method == explicit_method.runge_kutta_2:
+        elif method == explicit_method.rk2:
             self.RK2(stepT)
-        elif method == explicit_method.runge_kutta_4:
+        elif method == explicit_method.rk4:
             self.RK4(stepT)
 
     def forwardEuler(self, stepT):
         oldV = self.V
         self.V += stepT*self.F/self.mass
+        #Check if constrained
+        for c in self.constrIdx:
+            self.V[c] = [0.0,0.0,0.0]
         self.X += stepT*oldV  
 
     def RK2(self, stepT):
@@ -215,8 +220,14 @@ class Cloth:
         b2 = self.F/self.mass
 
         #Update Pos and Vel
-        self.X += stepT*b1
-        self.V += stepT*b2
+        deltaX = stepT*b1
+        deltaV = stepT*b2
+        #Check if constrained
+        for c in self.constrIdx:
+            deltaV[c] = [0.0,0.0,0.0]
+            deltaX[c] = [0.0,0.0,0.0]
+        self.X += deltaX
+        self.V += deltaV
 
     def RK4(self, stepT):
         #Step 1
@@ -245,8 +256,14 @@ class Cloth:
         d2 = self.F/self.mass
 
         #Update Pos and Vel
-        self.X += stepT/6*(a1+2*b1+2*c1+d1)
-        self.V += stepT/6*(a2+2*b2+2*c2+d2)
+        deltaX = stepT/6*(a1+2*b1+2*c1+d1)
+        deltaV = stepT/6*(a2+2*b2+2*c2+d2)
+        #Check if constrained
+        for c in self.constrIdx:
+            deltaV[c] = [0.0,0.0,0.0]
+            deltaX[c] = [0.0,0.0,0.0]
+        self.X += deltaX
+        self.V += deltaV
 
     def ImplictEuler(self, stepT):
         """
@@ -281,10 +298,18 @@ class Cloth:
     def constrain(self,constrIdx):
         self.constrIdx = constrIdx #Index to constrains
 
+"""
 c = Cloth(2,2,0.2)
 constr = np.array([0,2])
 c.constrain(constr)
-c.ImplictEuler(0.002)
+for i in range(0,5):
+    print""
+    c.simUpdateExplicit(0.00014,explicit_method.fe)
+"""
+
+
+
+
 
 
 
