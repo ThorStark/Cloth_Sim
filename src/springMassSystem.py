@@ -1,3 +1,4 @@
+# -*- coding: cp1252 -*-
 """
 Mass-spring system:
 
@@ -8,13 +9,17 @@ import numpy as np
 from enum import Enum
 
 CONST_GRAVITY       = -9.8      # Gravitational acceleration (m/s^2)
-CONST_KD_DRAG       = 0.02       # Air drag damper coefficient (N*s/m)
+CONST_KD_DRAG       = 0.001       # Air drag damper coefficient (N*s/m)
 CONST_KS_STRETCH    = 2.0e+3    # Spring constant (N/m)
 CONST_KS_SHEAR      = 1.0e+3    # --||--
 CONST_KS_BEND       = 1.0e+3    # --||--
 CONST_KD_STRETCH    = 0.001      # Damping coefficient
 CONST_KD_SHEAR      = 0.001      # --||--
-CONST_KD_BEND       = 0.001      # --||--
+CONST_KD_BEND       = 0.00      # --||--
+
+#Constants for torsions spring
+CONST_KS_TOR = 1.0e+4
+CONST_KD_TOR = 0.0
 
 class explicit_method(Enum):
     fe    = 0 # forward euler
@@ -26,21 +31,32 @@ class spring_type(Enum):
     
 class Spring:
     """ Class for Springs connecting vertices in the spring system """
-    def __init__(self, L0, ks, kd, I, J, K, t):
+    def __init__(self, L0, ks, kd, I, J):
         self.l0_ = L0   # Rest length
         self.ks_ = ks   # Spring constant
         self.kd_ = kd   # Spring damping coeff
         self.indI_ = I  # index to first particle connected to spring
         self.indJ_ = J  # index to second ------||------
-        self.indK_ = K  # index two third particle (used for torsion spring)
-        self.type_  = t # Type of spring (tension or torsion)
 
+class TorSpring:
+    """ class for Torsion Spring """
+    def __init__(self,a,ks,kd,o,i,j):
+        self.a_ = a #Rest angel
+        self.ks_ = ks #Spring constants
+        self.kd_ = kd #Spring damping
+        self.indI_ = i  # index to first particle connected to spring
+        self.indJ_ = j  # index to second ------||------
+        self.indO_ = o  # index to point of revolution
+        
 class Cloth:
     
-    def __init__(self, dimX, dimY, m):
+    def __init__(self, dimX, dimY, m, s):
         """
             Initialize
         """
+        self.s = s
+        self.dX = dimX # Mesh dimension
+        self.dY = dimY # Mesh dimension
         self.nElements = (dimX*dimY) #Number of elements/Particles
         self.X = np.zeros((self.nElements, 3)) #Positions
         self.V = np.zeros((self.nElements, 3)) #Velocities
@@ -52,33 +68,41 @@ class Cloth:
         self.Jv = np.zeros((3*self.nElements, 3*self.nElements)) #Force Jacobian. J(v), used by implicit methods
         self.constrIdx = np.array([])
         
+        self.__UniMeshParticleCreator(dimX,dimY,s)
+        print("Particles initialized")
+        self.springs = []
+        self.torSprings = []
+        self.__NewSpringCreator(self.X,s)
+        print("Springs initialized")
+
+    def __UniMeshParticleCreator(self,dimY, dimX, pSpacing):
         #Create Particles in uniform mesh
         self.particles = []
         for i in range(0,dimY):
             for j in range(0,dimX):
-                pos = np.asarray([i,j,1.0])
+                pos = np.asarray([i*pSpacing,j*pSpacing,1.0])
                 self.X[i*dimX+j] = pos
-        print("Particles initialized")
         
+    def __OldSpringCreator(self,X,pSpacing):
         #Create springs
         self.springs = []
         for i, xi in enumerate(self.X):
             for j, xj in enumerate(self.X):
                 taxicab_dist = np.linalg.norm((xi-xj),ord=1)
                 euclid_dist = np.linalg.norm((xi-xj))
-                if((taxicab_dist <= 2) and i<j):
+                if((taxicab_dist <= (2*pSpacing) ) and i<j):
                     #Create springs!
-                    if(taxicab_dist == 1 ):
+                    if(taxicab_dist == pSpacing ):
                         #create stretch spring
-                        spring = Spring(euclid_dist,CONST_KS_STRETCH,CONST_KD_STRETCH,i,j,-1,spring_type.tension)
+                        spring = Spring(euclid_dist,CONST_KS_STRETCH,CONST_KD_STRETCH,i,j)
                         self.springs.append(spring)
-                    if(euclid_dist < 2 and taxicab_dist == 2):
+                    if(euclid_dist < (2*pSpacing) and taxicab_dist == (2*pSpacing)):
                         #create shear springs
-                        spring = Spring(euclid_dist,CONST_KS_SHEAR,CONST_KD_SHEAR,i,j,-1,spring_type.tension)
+                        spring = Spring(euclid_dist,CONST_KS_SHEAR,CONST_KD_SHEAR,i,j)
                         self.springs.append(spring)
-                    if(euclid_dist == 2.0 and taxicab_dist == 2.0):
+                    if(euclid_dist == (2*pSpacing) and taxicab_dist == (2*pSpacing)):
                         #create Bend springs
-                        spring = Spring(euclid_dist,CONST_KS_BEND,CONST_KD_BEND,i,j,-1,spring_type.tension)
+                        spring = Spring(euclid_dist,CONST_KS_BEND,CONST_KD_BEND,i,j)
                         self.springs.append(spring)
                         """
                         #TODO. Finish new implementation of bend torsion spring.
@@ -91,9 +115,55 @@ class Cloth:
                                 spring = Spring(0,0.05e+7,0.15,i,j,k,spring_type.torsion)
                                 self.springs.append(spring)
                         """
+    def __NewSpringCreator(self,X,pSpacing):
+        #Create springs
+        for i, xi in enumerate(self.X):
+            for j, xj in enumerate(self.X):
+                taxicab_dist = np.linalg.norm((xi-xj),ord=1)
+                euclid_dist = np.linalg.norm((xi-xj))
+                if((taxicab_dist <= (2*pSpacing) ) and i<j):
+                    #Create springs!
+                    if(taxicab_dist == pSpacing ):
+                        #create stretch spring
+                        spring = Spring(euclid_dist,CONST_KS_STRETCH,CONST_KD_STRETCH,i,j)
+                        self.springs.append(spring)
+                    if(euclid_dist < (2*pSpacing) and taxicab_dist == (2*pSpacing)):
+                        #create shear springs
+                        spring = Spring(euclid_dist,CONST_KS_SHEAR,CONST_KD_SHEAR,i,j)
+                        self.springs.append(spring)
+        #Create Torsion springs :)
+        """ ONLY WORKS FOR GRID MESH STRUCTURE!!!
+            
+        """
+        #Convert array to grid
+        X3d = self.X.reshape((self.dY,self.dX,3))
+        for y in range(0,self.dY):
+            for x in range(0,self.dX):
+                o  = ((y+0)*self.dY+x)
+                xp = ((y+0)*self.dY+(x+1))
+                xm = ((y+0)*self.dY+(x-1))
+                yp = ((y+1)*self.dY+(x+0))
+                ym = ((y-1)*self.dY+(x+0))
+                print([o,xp,xm,yp,ym])
+                
+                if((y == 0 or y == (self.dY-1)) and (x == 0 or x == (self.dX-1))):
+                    pass
+                else:
+                    if((y == 0 or y == (self.dY-1))):
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp)
+                        self.torSprings.append(tspring)
+                    elif((x == 0 or x == (self.dX-1))):
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp)
+                        self.torSprings.append(tspring)
+                    else:
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp)
+                        self.torSprings.append(tspring)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp)
+                        self.torSprings.append(tspring)
+    
+        #print([X3d[1,0],self.X[self.dY]])
+        
                     
-                        
-        print("Springs initialized")
                 
     def force(self,X,V):
         """
@@ -108,51 +178,74 @@ class Cloth:
         #Add damping force (Air drag)
         self.F -= CONST_KD_DRAG*self.V
             
-        #Add spring forces
+        #Add spring forces for tension springs
         for s in self.springs:
             """
             Calculates the spring force acting on particle i and j
             """
-            if(s.type_ == spring_type.tension):
-                xi = X[s.indI_] #Pos of particle i
-                xj = X[s.indJ_] #Pos of particle j
-                vi = V[s.indI_] #velocity of particle i
-                vj = V[s.indJ_] #velocity of particle j
-                deltaX = xj-xi
-                norm2 = np.linalg.norm(deltaX)
-                spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
-                spring_damp_force = s.kd_ * np.dot((vi-vj),deltaX/norm2)*deltaX/norm2  #Damping on string
-                #print([np.linalg.norm(spring_damp_force), np.linalg.norm(spring_force)]) #test magnitude of force
-                #print([np.dot(spring_damp_force,spring_force),(np.linalg.norm(spring_damp_force)*(np.linalg.norm(spring_force)))]) #Test direction of forces
-                """
-                if(np.linalg.norm(spring_damp_force) > np.linalg.norm(spring_force)):
-                    print("K ",spring_force)
-                    print("d ",spring_damp_force)
-                    print("s ",s.indI_,s.indJ_)
-                    print ""
-                """
-                
-                #Add forces
-                self.F[s.indI_] += spring_force +spring_damp_force
-                self.F[s.indJ_] -= spring_force +spring_damp_force
-            elif(s.type_ == spring_type.torsion):
-                xi = X[s.indI_] #Pos of particle i
-                xj = X[s.indJ_] #Pos of particle j
-                xk = X[s.indK_] #Pos of particle k
-                #Find angle between xij and xik
-                xij = xi-xj
-                xik = xi-xk
-                xij_u = xij/np.linalg.norm(xij) #unit vector
-                xik_u = xik/np.linalg.norm(xik) #unit vector
-                angle = np.arccos(np.dot(xij_u,xik_u))
-                if np.isnan(angle):
-                    if(xij_u == xik_u).all():
-                        angle = 0.0
-                    else:
-                        angle = np.pi
-                #Calculate force
-                #spring_torsion += 
-                #print angle
+            xi = X[s.indI_] #Pos of particle i
+            xj = X[s.indJ_] #Pos of particle j
+            vi = V[s.indI_] #velocity of particle i
+            vj = V[s.indJ_] #velocity of particle j
+            deltaX = xj-xi
+            norm2 = np.linalg.norm(deltaX)
+            spring_force = s.ks_ * deltaX/norm2 *(norm2-s.l0_)     # Spring force
+            spring_damp_force = s.kd_ * np.dot((vi-vj),deltaX/norm2)*deltaX/norm2  #Damping on string
+    
+            #Add forces
+            self.F[s.indI_] += spring_force +spring_damp_force
+            self.F[s.indJ_] -= spring_force +spring_damp_force
+
+        #Add spring forces for torsion springs
+        for i, s in enumerate(self.torSprings): 
+            xi = X[s.indI_] #Pos of particle i
+            xj = X[s.indJ_] #Pos of particle j
+            xo = X[s.indO_] #Pos of particle k
+            #Find angle between xij and xik
+            a = xi-xo
+            b = xo-xj
+            a_u = a/np.linalg.norm(a) #unit vector
+            b_u = b/np.linalg.norm(b) #unit vector
+            angle = np.arccos(np.dot(a_u,b_u)) #angle between two unti vectors
+            if np.isnan(angle):
+                if(a_u == b_u).all():
+                    angle = 0.0
+                else:
+                    angle = np.pi
+            if(angle >= np.pi):
+                print "test"
+            #Check sign for angle
+            cross = np.cross(a,b)
+            normCro = np.linalg.norm(cross)
+            if( normCro == 0.0):
+                cross_hat = np.array([0.0,0.0,0.0])
+            else:    
+                cross_hat = cross/normCro #Torque direction vector
+
+            #Calculate torque
+            tau = s.ks_*angle*cross_hat
+##            if(angle == 0):
+##                print([s.indI_,s.indJ_])
+##                print([self.X[s.indI_]])
+##                print([self.X[s.indJ_]])
+##                print([self.X[s.indO_]])
+
+            #Write to file for debugging:
+            if(i == 1):
+                pass
+            dF1 = np.cross(tau,a)
+            dF2 = np.cross(tau,b)
+            #dF1 = dF1*[0.0,0.0,1.0]
+            #dF2 = -dF2*[0.0,0.0,1.0]
+            #Calculate force on particles
+            self.F[s.indI_] += dF1
+            self.F[s.indJ_] += dF2
+            self.F[s.indO_] -= (dF1+dF2)
+            
+            #print torsion_force
+
+            #Calculate force
+            #spring_torsion += 
 
     def forceDerivatives(self,X,V):
         self.Jx = np.zeros((3*self.nElements, 3*self.nElements))
@@ -181,9 +274,6 @@ class Cloth:
             """
             Todo
             """
-            
-            
-              
 
     def simUpdateExplicit(self,stepT,method):
         """
@@ -265,7 +355,7 @@ class Cloth:
         self.X += deltaX
         self.V += deltaV
 
-    def ImplictEuler(self, stepT):
+    def semiImplictEuler(self, stepT):
         """
             (M-h*df/dv-h^2*df/dx)deltaV=h(f0+h*df/dx*v0)
             A*deltaV = b
@@ -298,15 +388,13 @@ class Cloth:
     def constrain(self,constrIdx):
         self.constrIdx = constrIdx #Index to constrains
 
-"""
-c = Cloth(2,2,0.2)
+
+c = Cloth(3,3,0.2,1.0)
 constr = np.array([0,2])
 c.constrain(constr)
-for i in range(0,5):
+for i in range(0,10):
     print""
     c.simUpdateExplicit(0.00014,explicit_method.fe)
-"""
-
 
 
 
