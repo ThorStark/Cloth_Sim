@@ -21,12 +21,12 @@ def data(i,c,surf,triang):
     #Plot tri mesh
     surf = ax.plot_trisurf(x,y,z,triangles=triang.triangles,color= 'gray',linewidth=0.4)
     # Limit plot for better data visualization
-    ax.set_zlim(-3.2 , 1.2)
+    ax.set_zlim(0.5 , 1.2)
     ax.set_xlim(-0.1 , 3.1)
     ax.set_ylim(-0.1 , 3.1)
     
     #Update simulation
-    for i in range(0,20):
+    for i in range(0,10):
         c.simUpdateExplicit(0.00010,sms.explicit_method.fe)
     """
     for i in range(0,3):
@@ -34,7 +34,7 @@ def data(i,c,surf,triang):
     """
     return surf
 
-c = sms.Cloth(7,7,0.02,0.5)
+c = sms.Cloth(7,7,0.005,0.5)
 constr = np.array([0,1,2,3,4,5,6, 7,8,9,10,11,12,13])
 c.constrain(constr) #Constrain specific particles
 
