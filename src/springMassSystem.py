@@ -19,7 +19,7 @@ CONST_KD_BEND       = 0.00      # --||--
 
 #Constants for torsions spring
 CONST_KS_TOR = 1.0e+4
-CONST_KD_TOR = 0.0
+CONST_KD_TOR = 0.5
 
 class explicit_method(Enum):
     fe    = 0 # forward euler
@@ -40,13 +40,14 @@ class Spring:
 
 class TorSpring:
     """ class for Torsion Spring """
-    def __init__(self,a,ks,kd,o,i,j):
+    def __init__(self,a,ks,kd,o,i,j,theta):
         self.a_ = a #Rest angel
         self.ks_ = ks #Spring constants
         self.kd_ = kd #Spring damping
         self.indI_ = i  # index to first particle connected to spring
         self.indJ_ = j  # index to second ------||------
         self.indO_ = o  # index to point of revolution
+        self.angle_ = theta #Used for calculating damping
         
 class Cloth:
     
@@ -150,15 +151,15 @@ class Cloth:
                     pass
                 else:
                     if((y == 0 or y == (self.dY-1))):
-                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp,0.0)
                         self.torSprings.append(tspring)
                     elif((x == 0 or x == (self.dX-1))):
-                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp,0.0)
                         self.torSprings.append(tspring)
                     else:
-                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp,0.0)
                         self.torSprings.append(tspring)
-                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp,0.0)
                         self.torSprings.append(tspring)
     
         #print([X3d[1,0],self.X[self.dY]])
@@ -216,7 +217,7 @@ class Cloth:
         
             
         
-    def force(self,X,V):
+    def force(self,X,V,t):
         """
             Calculates the force on all particels in the system
         """
@@ -227,7 +228,7 @@ class Cloth:
             #Add gravitational force
             self.F[i] += self.sGravity
         #Add damping force (Air drag)
-        self.F -= CONST_KD_DRAG*self.V
+        #self.F -= CONST_KD_DRAG*self.V
             
         #Add spring forces for tension springs
         for s in self.springs:
@@ -255,15 +256,19 @@ class Cloth:
             #Find angle between xij and xik
             a = xi-xo
             b = xo-xj
-            a_u = a/np.linalg.norm(a) #unit vector
-            b_u = b/np.linalg.norm(b) #unit vector
+            a_norm = np.linalg.norm(a)
+            a_u = a/a_norm #unit vector
+            b_norm = np.linalg.norm(b) 
+            b_u = b/b_norm #unit vector
             angle = np.arccos(np.dot(a_u,b_u)) #angle between two unti vectors
             if np.isnan(angle):
                 if(a_u == b_u).all():
                     angle = 0.0
                 else:
-                    angle = np.pi
-            if(angle >= np.pi):
+                    #angle = np.pi
+                    angle = 0.0
+                    #print "huh?"
+            if(angle > np.pi):
                 print "test"
             #Check sign for angle
             cross = np.cross(a,b)
@@ -281,9 +286,6 @@ class Cloth:
 ##                print([self.X[s.indJ_]])
 ##                print([self.X[s.indO_]])
 
-            #Write to file for debugging:
-            if(i == 1):
-                pass
             dF1 = np.cross(tau,a)
             dF2 = np.cross(tau,b)
             #dF1 = dF1*[0.0,0.0,1.0]
@@ -292,11 +294,54 @@ class Cloth:
             self.F[s.indI_] += dF1
             self.F[s.indJ_] += dF2
             self.F[s.indO_] -= (dF1+dF2)
-            
-            #print torsion_force
 
-            #Calculate force
-            #spring_torsion += 
+            # # # # # # # # # # # # # # # # #
+            # Don't forget rotational friction!
+            # tau_damp = k_d*omega
+            # # # # # # # # # # # # # # # # #
+            # First find the angular velocity: omega
+            
+            # We need to project on to plane define by cross_hat
+            # Also has to be orthegonal to cross_hat and a or b
+            
+            # find orthegonal unit vector between cross_hat and a
+            va = np.cross(a,cross_hat)
+            if(np.linalg.norm(va) == 0):
+                va_hat = np.array([0.0,0.0,0.0])
+            else:    
+                va_hat = va/np.linalg.norm(va)
+            #Project Va onto v1_hat
+            Va = np.dot(V[s.indI_],va_hat) * va_hat
+            #Calculate angular vel
+            omega_a = np.cross(a,Va)/(a_norm * a_norm)
+
+            #Do the same for b
+            vb = np.cross(b,cross_hat)
+            if(np.linalg.norm(vb) == 0):
+                vb_hat = np.array([0.0,0.0,0.0])
+            else:
+                vb_hat = vb/np.linalg.norm(vb)
+            Vb = np.dot(V[s.indJ_],vb_hat) * vb_hat
+            omega_b = np.cross(b,Vb)/(a_norm * a_norm)
+
+            omega = omega_a + omega_b
+            #print omega_a
+            #print omega_b
+            #print ""
+            #print (angle - s.angle_)/t
+            #omega = (angle - s.angle_)/t
+            s.angle_ = angle
+            tau_da = s.kd_*omega_a*cross_hat
+            tau_db = s.kd_*omega_b*cross_hat
+
+            dF_da = np.cross(tau_da,a)
+            dF_db = np.cross(tau_db,b)
+            self.F[s.indI_] += dF_da
+            self.F[s.indJ_] += dF_db
+            self.F[s.indO_] -= (dF_da+dF_db)
+             
+            
+            
 
     def forceDerivatives(self,X,V):
         self.Jx = np.zeros((3*self.nElements, 3*self.nElements))
@@ -331,7 +376,7 @@ class Cloth:
             simulation update: Uses explicit Euler
         """
         #Compute forces
-        self.force(self.X,self.V)
+        self.force(self.X,self.V,stepT)
         #Choose method
         if method == explicit_method.fe:
             self.forwardEuler(stepT)
@@ -379,21 +424,21 @@ class Cloth:
         b1 = self.V + stepT/2*a2
         Xtmp = self.X+stepT/2*a1
         Vtmp = self.V+stepT/2*a2
-        self.force(Xtmp,Vtmp)
+        self.force(Xtmp,Vtmp,stepT)
         b2 = self.F/self.mass
 
         #Step 3
         c1 = self.V + stepT/2*b2
         Xtmp = self.X+stepT/2*b1
         Vtmp = self.V+stepT/2*b2
-        self.force(Xtmp,Vtmp)
+        self.force(Xtmp,Vtmp,stepT)
         c2 = self.F/self.mass
 
         #Step 4
         d1 = self.V + stepT*c2
         Xtmp = self.X+stepT*c1
         Vtmp = self.V+stepT*c2
-        self.force(Xtmp,Vtmp)
+        self.force(Xtmp,Vtmp,stepT)
         d2 = self.F/self.mass
 
         #Update Pos and Vel
@@ -440,14 +485,15 @@ class Cloth:
         self.constrIdx = constrIdx #Index to constrains
 
 
-c = Cloth(3,3,0.2,1.0)
-constr = np.array([0,2])
-c.constrain(constr)
+##c = Cloth(3,3,0.2,1.0)
+##constr = np.array([0,2])
+##c.constrain(constr)
+##
+##for i in range(0,5):
+##    print""
+##    #print c.Energy()
+##    c.simUpdateExplicit(0.00014,explicit_method.fe)
 
-for i in range(0,40):
-    #print""
-    print c.Energy()
-    c.simUpdateExplicit(0.00014,explicit_method.fe)
 
 
 
