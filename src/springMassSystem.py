@@ -5,6 +5,8 @@ Mass-spring system:
 Date of creation: 10. Feb 2016
 Author: Thor Staerk Stenvang
 """
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from enum import Enum
 
@@ -40,14 +42,14 @@ class Spring:
 
 class TorSpring:
     """ class for Torsion Spring """
-    def __init__(self,a,ks,kd,o,i,j,theta):
+    def __init__(self,a,ks,kd,o,i,j):
         self.a_ = a #Rest angel
         self.ks_ = ks #Spring constants
         self.kd_ = kd #Spring damping
         self.indI_ = i  # index to first particle connected to spring
         self.indJ_ = j  # index to second ------||------
         self.indO_ = o  # index to point of revolution
-        self.angle_ = theta #Used for calculating damping
+        #self.angle_ = theta #Used for calculating damping
         
 class Cloth:
     
@@ -137,29 +139,30 @@ class Cloth:
             
         """
         #Convert array to grid
-        X3d = self.X.reshape((self.dY,self.dX,3))
-        for y in range(0,self.dY):
-            for x in range(0,self.dX):
-                o  = ((y+0)*self.dY+x)
-                xp = ((y+0)*self.dY+(x+1))
-                xm = ((y+0)*self.dY+(x-1))
-                yp = ((y+1)*self.dY+(x+0))
-                ym = ((y-1)*self.dY+(x+0))
+        X3d = self.X.reshape((self.dX,self.dY,3))
+        for x in range(0,self.dX):
+            for y in range(0,self.dY):
+                o  = ((x+0)*(self.dY)+y)
+                xp = ((x+1)*(self.dY)+(y+0))
+                xm = ((x-1)*(self.dY)+(y-0))
+                
+                yp = ((x+0)*(self.dY)+(y+1))
+                ym = ((x-0)*(self.dY)+(y-1))
                 #print([o,xp,xm,yp,ym]) #used for debugging
                 
                 if((y == 0 or y == (self.dY-1)) and (x == 0 or x == (self.dX-1))):
                     pass
                 else:
                     if((y == 0 or y == (self.dY-1))):
-                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp,0.0)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp)
                         self.torSprings.append(tspring)
                     elif((x == 0 or x == (self.dX-1))):
-                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp,0.0)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp)
                         self.torSprings.append(tspring)
                     else:
-                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp,0.0)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,xm,xp)
                         self.torSprings.append(tspring)
-                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp,0.0)
+                        tspring = TorSpring(0.0,CONST_KS_TOR,CONST_KD_TOR,o,ym,yp)
                         self.torSprings.append(tspring)
     
         #print([X3d[1,0],self.X[self.dY]])
@@ -485,14 +488,58 @@ class Cloth:
         self.constrIdx = constrIdx #Index to constrains
 
 
-##c = Cloth(3,3,0.2,1.0)
+##c = Cloth(3,2,0.2,1.0)
 ##constr = np.array([0,2])
 ##c.constrain(constr)
+###Plot torsion springs
+##"""
+##x = y = z = np.zeros(0)
+##for i,s in enumerate(c.torSprings):
+##    p1 = c.X[s.indI_]
+##    p2 = c.X[s.indJ_]
+##    p3 = c.X[s.indO_]
+##    x = np.append(x,[p1[0],p2[0],p3[0]])
+##    y = np.append(y,[p1[1],p2[1],p3[1]])
+##    z = np.append(z,[p1[2]+i,p2[2]+i,p3[2]+i])
+##
+##fig = plt.figure()
+##ax = fig.add_subplot(111,projection='3d')
+##sct = ax.scatter(x, y, z,color= 'b')
+##plt.show()
+##"""
+###Plot points with annotation:
+##x = c.X[:,0]
+##y = c.X[:,1]
+###z = c.X[:,2]
+##fig = plt.figure()
+##ax = fig.add_subplot(111)
+##ax.scatter(x,y)
+##for i in range(0,len(x)):
+##    ax.annotate(i,(x[i],y[i]))
+##
+##x = y = a = np.zeros(0)
+##for i,s in enumerate(c.torSprings):
+##    p1 = c.X[s.indI_]
+##    p2 = c.X[s.indJ_]
+##    p3 = c.X[s.indO_]
+##    x = np.append(x,[p1[0],p2[0],p3[0]])
+##    y = np.append(y,[p1[1],p2[1],p3[1]])
+##    a = np.append(a,[s.indI_,s.indJ_,s.indO_])
+##fig2 = plt.figure()
+##ax = fig2.add_subplot(111)
+##ax.scatter(x,y)
+##for i,txt in enumerate(a):
+##    ax.annotate((txt,i%3,i/3),(x[i],y[i]+i/3*0.1))
+##print(len(c.torSprings))
+##
+##plt.show()
 ##
 ##for i in range(0,5):
 ##    print""
 ##    #print c.Energy()
 ##    c.simUpdateExplicit(0.00014,explicit_method.fe)
+
+
 
 
 
