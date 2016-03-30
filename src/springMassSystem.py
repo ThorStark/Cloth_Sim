@@ -12,7 +12,7 @@ from enum import Enum
 
 CONST_GRAVITY       = -9.8      # Gravitational acceleration (m/s^2)
 CONST_KD_DRAG       = 0.001     # Air drag damper coefficient (N*s/m)
-CONST_KS_STRETCH    = 2.0e+3    # Spring constant (N/m)
+CONST_KS_STRETCH    = 4.0e+3    # Spring constant (N/m)
 CONST_KS_SHEAR      = 1.0e+3    # --||--
 CONST_KS_BEND       = 1.0e+3    # --||--
 CONST_KD_STRETCH    = 0.001     # Damping coefficient
@@ -20,8 +20,8 @@ CONST_KD_SHEAR      = 0.001     # --||--
 CONST_KD_BEND       = 0.00      # --||--
 
 #Constants for torsions spring
-CONST_KS_TOR = 1.0e+4
-CONST_KD_TOR = 0.5
+CONST_KS_TOR =  5.0e+1
+CONST_KD_TOR = -0.005
 
 class explicit_method(Enum):
     fe    = 0 # forward euler
@@ -229,7 +229,7 @@ class Cloth:
             #Clear forces
             self.F[i] = [0.0, 0.0, 0.0]
             #Add gravitational force
-            self.F[i] += self.sGravity
+            self.F[i] += self.sGravity*self.mass
         #Add damping force (Air drag)
         #self.F -= CONST_KD_DRAG*self.V
             
@@ -308,41 +308,64 @@ class Cloth:
             # Also has to be orthegonal to cross_hat and a or b
             
             # find orthegonal unit vector between cross_hat and a
+##            va = np.cross(a,cross_hat)
+##            if(np.linalg.norm(va) == 0):
+##                va_hat = np.array([0.0,0.0,0.0])
+##            else:    
+##                va_hat = va/np.linalg.norm(va)
+##            #Project Va onto v1_hat
+##            Va = np.dot(V[s.indI_],va_hat) * va_hat
+##            #Calculate angular vel
+##            omega_a = np.cross(a,Va)/(a_norm * a_norm)
+##
+##            #Do the same for b
+##            vb = np.cross(b,cross_hat)
+##            if(np.linalg.norm(vb) == 0):
+##                vb_hat = np.array([0.0,0.0,0.0])
+##            else:
+##                vb_hat = vb/np.linalg.norm(vb)
+##            Vb = np.dot(V[s.indJ_],vb_hat) * vb_hat
+##            omega_b = np.cross(-b,Vb)/(a_norm * a_norm)
+##
+##            omega = omega_a + omega_b
+##            #print omega_a
+##            #print omega_b
+##            #print ""
+##            #print (angle - s.angle_)/t
+##            #omega = (angle - s.angle_)/t
+##            s.angle_ = angle
+##            tau_da = s.kd_*omega_a*cross_hat
+##            tau_db = s.kd_*omega_b*cross_hat
+##
+##            dF_da = np.cross(tau_da,a)
+##            dF_db = np.cross(tau_db,-b)
+##            #dF_da = s.kd_*Va
+##            #dF_db = s.kd_*Vb
+##            self.F[s.indI_] += dF_da
+##            self.F[s.indJ_] += dF_db
+##            self.F[s.indO_] -= (dF_da+dF_db)
+
             va = np.cross(a,cross_hat)
             if(np.linalg.norm(va) == 0):
                 va_hat = np.array([0.0,0.0,0.0])
-            else:    
+            else:
                 va_hat = va/np.linalg.norm(va)
-            #Project Va onto v1_hat
-            Va = np.dot(V[s.indI_],va_hat) * va_hat
-            #Calculate angular vel
-            omega_a = np.cross(a,Va)/(a_norm * a_norm)
-
-            #Do the same for b
+                
             vb = np.cross(b,cross_hat)
             if(np.linalg.norm(vb) == 0):
                 vb_hat = np.array([0.0,0.0,0.0])
             else:
                 vb_hat = vb/np.linalg.norm(vb)
+
+            Va = np.dot(V[s.indI_],va_hat) * va_hat
             Vb = np.dot(V[s.indJ_],vb_hat) * vb_hat
-            omega_b = np.cross(b,Vb)/(a_norm * a_norm)
 
-            omega = omega_a + omega_b
-            #print omega_a
-            #print omega_b
-            #print ""
-            #print (angle - s.angle_)/t
-            #omega = (angle - s.angle_)/t
-            s.angle_ = angle
-            tau_da = s.kd_*omega_a*cross_hat
-            tau_db = s.kd_*omega_b*cross_hat
+            F_a = s.kd_*Va
+            F_b = s.kd_*Vb
 
-            dF_da = np.cross(tau_da,a)
-            dF_db = np.cross(tau_db,b)
-            self.F[s.indI_] += dF_da
-            self.F[s.indJ_] += dF_db
-            self.F[s.indO_] -= (dF_da+dF_db)
-             
+            self.F[s.indI_] += F_a
+            self.F[s.indJ_] += F_b
+            self.F[s.indO_] -= (F_a+F_b)
             
             
 
@@ -487,8 +510,20 @@ class Cloth:
     def constrain(self,constrIdx):
         self.constrIdx = constrIdx #Index to constrains
 
+    def imex(self,stepT):
+        """
+        Implicit-explicit method
+        
+        Solves shear and stretch springs implicit
+        Solves torsion bend spring explicit
 
-##c = Cloth(3,2,0.2,1.0)
+        """
+        pass
+        
+        
+
+
+##c = Cloth(4,3,0.2,1.0)
 ##constr = np.array([0,2])
 ##c.constrain(constr)
 ###Plot torsion springs
@@ -529,7 +564,7 @@ class Cloth:
 ##ax = fig2.add_subplot(111)
 ##ax.scatter(x,y)
 ##for i,txt in enumerate(a):
-##    ax.annotate((txt,i%3,i/3),(x[i],y[i]+i/3*0.1))
+##    ax.annotate((txt,i%3,i/3),(x[i],y[i]+i/3*0.05))
 ##print(len(c.torSprings))
 ##
 ##plt.show()

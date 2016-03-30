@@ -31,9 +31,9 @@ def data(i,c,surf, triang):
     #Plot tri mesh
     surf = ax1.plot_trisurf(x,y,z,triangles=triang.triangles,color= 'gray',linewidth=0.4)
     # Limit plot for better data visualization
-    ax1.set_zlim(0.5 , 1.2)
-    ax1.set_xlim(-0.1 , 3.1)
-    ax1.set_ylim(-0.1 , 3.1)
+    ax1.set_zlim(0.96 , 1.01)
+    ax1.set_xlim(-0.01 , 0.1)
+    ax1.set_ylim(-0.01 , 0.16)
 
     #Calculate system energy
     u0, u1, u2, u3 = c.Energy()
@@ -53,7 +53,7 @@ def data(i,c,surf, triang):
     
     #Update simulation
     for i in range(0,10):
-        c.simUpdateExplicit(0.0001,sms.explicit_method.rk4)
+        c.simUpdateExplicit(0.0002,sms.explicit_method.rk4)
         t = t+0.00010
     """
     for i in range(0,3):
@@ -61,9 +61,10 @@ def data(i,c,surf, triang):
     """
     return surf,pU0#, pEnergy
 
-c = sms.Cloth(7,7,0.005,0.5)
+c = sms.Cloth(10,16,0.7,0.01)
+constr = np.arange(2*c.dY)
 #constr = np.array([0,1,2,3,4,5,6, 7,8,9,10,11,12,13])
-constr = np.array([5,6,12,13,19,20,26,27,33,34,40,41,47,48])
+#constr = np.array([5,6,12,13,19,20,26,27,33,34,40,41,47,48])
 #constr = np.array([0,6])
 c.constrain(constr) #Constrain specific particles
 
@@ -105,10 +106,10 @@ pU2, = ax4.plot(xp,yp3,'b-')
 pU3, = ax5.plot(xp,yp4,'b-')
 #pUT, = axt.plot(xp,ypt,'b-')
 
-ax2.set_ylim(0.0, 14.8)
-ax3.set_ylim(0.53, 0.61)
-ax4.set_ylim(0.0, 200)
-ax5.set_ylim(0.0, 1.5)
+ax2.set_ylim(0.0, 0.006)
+ax3.set_ylim(0.108, 0.11)
+ax4.set_ylim(0.0, 10.0)
+ax5.set_ylim(0.0, 1.0e-6)
 #axt.set_ylim(0.0, 200)
 """
     #Use when pin corners
