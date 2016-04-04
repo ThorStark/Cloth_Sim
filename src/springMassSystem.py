@@ -22,8 +22,8 @@ CONST_KD_SHEAR      = 0.001    # --||--
 CONST_KD_BEND       = 0.001    # --||--
 
 #Constants for torsions spring
-CONST_KS_TOR =  0.0 #5.0e+2
-CONST_KD_TOR = 0.0#-0.002
+CONST_KS_TOR =  1.1 #5.0e+2
+CONST_KD_TOR =  -0.001 # -0.002
 
 class explicit_method(Enum):
     fe    = 0 # forward euler
@@ -85,7 +85,7 @@ class Cloth:
         self.particles = []
         for i in range(0,dimY):
             for j in range(0,dimX):
-                pos = np.asarray([i*pSpacing,1.0,j*pSpacing])
+                pos = np.asarray([i*pSpacing,j*pSpacing,1.0])
                 self.X[i*dimX+j] = pos
         
     def __OldSpringCreator(self,X,pSpacing):
@@ -140,7 +140,7 @@ class Cloth:
         """ ONLY WORKS FOR GRID MESH STRUCTURE!!!
             
         """
-        """
+        
         #Convert array to grid
         X3d = self.X.reshape((self.dX,self.dY,3))
         for x in range(0,self.dX):
@@ -169,7 +169,6 @@ class Cloth:
                         self.torSprings.append(tspring)
     
         #print([X3d[1,0],self.X[self.dY]])
-        """
         
                     
     def Energy(self):

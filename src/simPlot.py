@@ -16,6 +16,8 @@ import time
 
 CONST_STEP = 0.0002
 CONST_FRAMES = 100
+CONST_X = 7
+CONST_Y = 7
 
 def data(i,c,surf,triang):
     global t
@@ -34,9 +36,9 @@ def data(i,c,surf,triang):
     ax1.clear() # Clear plot
     ###ax_tmp = fig.gca(projection='3d')
     ###plt.hold(True)
-    x_s = np.transpose(x.reshape((5,5)))
-    y_s = np.transpose(y.reshape((5,5)))
-    z_s = np.transpose(z.reshape((5,5)))
+    x_s = np.transpose(x.reshape((CONST_X,CONST_Y)))
+    y_s = np.transpose(y.reshape((CONST_X,CONST_Y)))
+    z_s = np.transpose(z.reshape((CONST_X,CONST_Y)))
     ###ax_tmp.plot_surface(x_s, y_s, z_s,rstride=1, cstride=1, cmap=cm.coolwarm,linewidth=0.4)
     ###plt.show()
     #Plot tri mesh
@@ -64,7 +66,7 @@ def data(i,c,surf,triang):
     
     
     #Update simulation
-    for i in range(0,10):
+    for i in range(0,20):
         #c.simUpdateExplicit(0.0001,sms.explicit_method.rk4)
         c.semiImplictEuler(CONST_STEP)
         t = t+CONST_STEP
@@ -74,11 +76,11 @@ def data(i,c,surf,triang):
     """
     return surf,pU0#, pEnergy
 
-c = sms.Cloth(5,5,0.001,0.1)
-#constr = np.arange(c.dY)
+c = sms.Cloth(CONST_X,CONST_Y,0.001,0.1)
+constr = np.arange(2*c.dY)
 #constr = np.array([0,1,2,3,4,5,6, 7,8,9,10,11,12,13])
 #constr = np.array([5,6,12,13,19,20,26,27,33,34,40,41,47,48])
-constr = np.array([4,24])
+#constr = np.array([4,24])
 c.constrain(constr) #Constrain specific particles
 
 x = []
@@ -89,7 +91,7 @@ for p in c.X:
     y.append(p[1])
     z.append(p[2])
 #Setup which points should be connected in the trimesh
-triang = tri.Triangulation(x, z)
+triang = tri.Triangulation(x, y)
 
 
 #Create figure
