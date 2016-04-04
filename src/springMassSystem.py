@@ -22,7 +22,7 @@ CONST_KD_SHEAR      = 0.001    # --||--
 CONST_KD_BEND       = 0.001    # --||--
 
 #Constants for torsions spring
-CONST_KS_TOR =  1.1 #5.0e+2
+CONST_KS_TOR =  1.1e+2 #5.0e+2
 CONST_KD_TOR =  -0.001 # -0.002
 
 class explicit_method(Enum):

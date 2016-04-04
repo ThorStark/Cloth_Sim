@@ -76,7 +76,7 @@ def data(i,c,surf,triang):
     """
     return surf,pU0#, pEnergy
 
-c = sms.Cloth(CONST_X,CONST_Y,0.001,0.1)
+c = sms.Cloth(CONST_X,CONST_Y,0.3,0.1)
 constr = np.arange(2*c.dY)
 #constr = np.array([0,1,2,3,4,5,6, 7,8,9,10,11,12,13])
 #constr = np.array([5,6,12,13,19,20,26,27,33,34,40,41,47,48])
