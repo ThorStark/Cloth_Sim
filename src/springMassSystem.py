@@ -10,18 +10,20 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from enum import Enum
 
+CONST_F_ERROR = 1e-09
+
 CONST_GRAVITY       = -9.8      # Gravitational acceleration (m/s^2)
-CONST_KD_DRAG       = 0.001     # Air drag damper coefficient (N*s/m)
-CONST_KS_STRETCH    = 4.0e+3    # Spring constant (N/m)
-CONST_KS_SHEAR      = 1.0e+3    # --||--
-CONST_KS_BEND       = 1.0e+3    # --||--
+CONST_KD_DRAG       = 0.02    # Air drag damper coefficient (N*s/m)
+CONST_KS_STRETCH    = 2.0e+2    # Spring constant (N/m)
+CONST_KS_SHEAR      = 1.0e+2    # --||--
+CONST_KS_BEND       = 0.0       #1.0e+3    # --||--
 CONST_KD_STRETCH    = 0.001     # Damping coefficient
-CONST_KD_SHEAR      = 0.001     # --||--
-CONST_KD_BEND       = 0.00      # --||--
+CONST_KD_SHEAR      = 0.001    # --||--
+CONST_KD_BEND       = 0.001    # --||--
 
 #Constants for torsions spring
-CONST_KS_TOR =  5.0e+1
-CONST_KD_TOR = -0.005
+CONST_KS_TOR =  0.0 #5.0e+2
+CONST_KD_TOR = 0.0#-0.002
 
 class explicit_method(Enum):
     fe    = 0 # forward euler
@@ -83,7 +85,7 @@ class Cloth:
         self.particles = []
         for i in range(0,dimY):
             for j in range(0,dimX):
-                pos = np.asarray([i*pSpacing,j*pSpacing,1.0])
+                pos = np.asarray([i*pSpacing,1.0,j*pSpacing])
                 self.X[i*dimX+j] = pos
         
     def __OldSpringCreator(self,X,pSpacing):
@@ -123,20 +125,21 @@ class Cloth:
         for i, xi in enumerate(self.X):
             for j, xj in enumerate(self.X):
                 taxicab_dist = np.linalg.norm((xi-xj),ord=1)
-                euclid_dist = np.linalg.norm((xi-xj))
-                if((taxicab_dist <= (2*pSpacing) ) and i<j):
+                euclid_dist = np.linalg.norm((xi-xj))             
+                if((abs(taxicab_dist) <= abs((2*pSpacing))+ CONST_F_ERROR) and i<j):
                     #Create springs!
-                    if(taxicab_dist == pSpacing ):
+                    if(abs(taxicab_dist-pSpacing) <= CONST_F_ERROR):
                         #create stretch spring
                         spring = Spring(euclid_dist,CONST_KS_STRETCH,CONST_KD_STRETCH,i,j)
                         self.springs.append(spring)
-                    if(euclid_dist < (2*pSpacing) and taxicab_dist == (2*pSpacing)):
+                    if(euclid_dist < (2*pSpacing) and (abs(taxicab_dist-(2*pSpacing)) <= CONST_F_ERROR)):
                         #create shear springs
                         spring = Spring(euclid_dist,CONST_KS_SHEAR,CONST_KD_SHEAR,i,j)
                         self.springs.append(spring)
         #Create Torsion springs :)
         """ ONLY WORKS FOR GRID MESH STRUCTURE!!!
             
+        """
         """
         #Convert array to grid
         X3d = self.X.reshape((self.dX,self.dY,3))
@@ -166,6 +169,7 @@ class Cloth:
                         self.torSprings.append(tspring)
     
         #print([X3d[1,0],self.X[self.dY]])
+        """
         
                     
     def Energy(self):
@@ -229,7 +233,7 @@ class Cloth:
             #Clear forces
             self.F[i] = [0.0, 0.0, 0.0]
             #Add gravitational force
-            self.F[i] += self.sGravity*self.mass
+            self.F[i] += self.mass*self.sGravity
         #Add damping force (Air drag)
         #self.F -= CONST_KD_DRAG*self.V
             
@@ -485,11 +489,19 @@ class Cloth:
             b = h(f0+h*df/dx*v0)
         """
         #Calculate forces and jacobians
-        self.force(self.X,self.V)
+        self.force(self.X,self.V,stepT)
         self.forceDerivatives(self.X,self.V)
         #setup linear equation
         A = self.M - stepT*self.Jv - stepT*stepT*self.Jx
         b = stepT*(self.F.flatten() + stepT * np.dot(self.Jx,self.V.flatten()))
+
+        """
+        #Show sparse matrix
+        plt.figure()
+        plt.spy(A)
+        plt.show()
+        """
+      
         
         #Solve equation
         deltaV = np.linalg.solve(A,b)
@@ -517,13 +529,14 @@ class Cloth:
         Solves shear and stretch springs implicit
         Solves torsion bend spring explicit
 
+
         """
         pass
         
         
 
 
-##c = Cloth(4,3,0.2,1.0)
+#c = Cloth(5,5,0.001,0.1)
 ##constr = np.array([0,2])
 ##c.constrain(constr)
 ###Plot torsion springs
